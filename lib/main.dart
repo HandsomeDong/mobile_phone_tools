@@ -80,13 +80,17 @@ class _ExampleWidgetState extends State<ExampleWidget> {
         ),
         RaisedButton(
           onPressed: () async {
-            String res =  await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
-            String msg = res;
-            if (res.startsWith("http")) {
-              fileURL = res;
-              downloadFile();
-            } else {
-              showDefaultToast(msg);
+            try {
+              String res =  await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
+              String msg = res;
+              if (res.startsWith("http")) {
+                fileURL = res;
+                downloadFile();
+              } else {
+                showDefaultToast(msg);
+              }
+            } catch (e) {
+              showDefaultToast(e.message);
             }
           },
           color: Colors.green,
@@ -96,13 +100,17 @@ class _ExampleWidgetState extends State<ExampleWidget> {
         ),
         RaisedButton(
           onPressed: () async {
-            String res = await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
-            String msg = res;
-            if (res.startsWith("http")) {
-              Clipboard.setData(ClipboardData(text: res));
-              msg = '七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~';
+            try {
+              String res = await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
+              String msg = res;
+              if (res.startsWith("http")) {
+                Clipboard.setData(ClipboardData(text: res));
+                msg = '七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~';
+              }
+              showDefaultToast(msg);
+            } catch (e) {
+              showDefaultToast(e.message);
             }
-            showDefaultToast(msg);
           },
           color: Colors.green,
           textColor: Colors.white,
@@ -114,7 +122,6 @@ class _ExampleWidgetState extends State<ExampleWidget> {
   }
 
   Future<void> downloadFile() async {
-    Dio dio = Dio();
     bool checkPermission1 =
     //1、权限检查
     await SimplePermissions.checkPermission(permission1);
@@ -157,7 +164,7 @@ class _ExampleWidgetState extends State<ExampleWidget> {
         final result = await ImageGallerySaver.saveFile(savePath);
         String msg;
         if (result['isSuccess']) {
-          msg = "视频下载成功！";
+          msg = "视频下载成功！快到相册里找找吧~";
         } else {
           msg = "视频下载失败！" + result['errorMessage'].toString();
         }
