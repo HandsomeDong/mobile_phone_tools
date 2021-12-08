@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:simple_permissions/simple_permissions.dart';
 import 'package:file_utils/file_utils.dart';
 import 'dart:math';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 
 
@@ -78,23 +80,13 @@ class _ExampleWidgetState extends State<ExampleWidget> {
         ),
         RaisedButton(
           onPressed: () async {
-            const platfrom = const MethodChannel("parseShareLink");
-            String res = await platfrom.invokeMethod(_controller.text);
+            String res =  await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
             String msg = res;
             if (res.startsWith("http")) {
-              // Clipboard.setData(ClipboardData(text: res));
               fileURL = res;
-              // msg = '七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~';
               downloadFile();
             } else {
-              Fluttertoast.showToast(
-                msg: msg,
-                toastLength: Toast.LENGTH_SHORT,
-                gravity: ToastGravity.BOTTOM,
-                timeInSecForIos: 5,
-                backgroundColor: Colors.grey[600], // 灰色背景
-                fontSize: 20.0,
-              );
+              showDefaultToast(msg);
             }
           },
           color: Colors.green,
@@ -104,22 +96,13 @@ class _ExampleWidgetState extends State<ExampleWidget> {
         ),
         RaisedButton(
           onPressed: () async {
-            const platfrom = const MethodChannel("parseShareLink");
-            String res = await platfrom.invokeMethod(_controller.text);
+            String res = await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
             String msg = res;
             if (res.startsWith("http")) {
               Clipboard.setData(ClipboardData(text: res));
               msg = '七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~';
             }
-
-            Fluttertoast.showToast(
-              msg: msg,
-              toastLength: Toast.LENGTH_SHORT,
-              gravity: ToastGravity.BOTTOM,
-              timeInSecForIos: 5,
-              backgroundColor: Colors.grey[600], // 灰色背景
-              fontSize: 20.0,
-            );
+            showDefaultToast(msg);
           },
           color: Colors.green,
           textColor: Colors.white,
@@ -142,53 +125,61 @@ class _ExampleWidgetState extends State<ExampleWidget> {
 
     if (checkPermission1 == true) {
       try {
-        Directory directory = Directory((await getApplicationDocumentsDirectory()).path);
+        // Directory directory = Directory((await getApplicationDocumentsDirectory()).path);
+        //
+        // Directory directoryRes;
+        // //2、创建文件夹
+        // if (!(await directory.exists())) {
+        //   directoryRes = await directory.create(recursive: true);
+        // }
+        //
+        // String filePath = directory.path + "/" + (DateTime.now().millisecondsSinceEpoch).toString() + random.nextInt(100).toString() + ".mp4";
+        //
+        // //3、使用 dio 下载文件
+        // await dio.download(fileURL, filePath,
+        //     onReceiveProgress: (receivedBytes, totalBytes) {
+        //       if (receivedBytes/totalBytes == 1) {
+        //         print(receivedBytes.toString() + "/" + totalBytes.toString());
+        //         Fluttertoast.showToast(
+        //           msg: "视频下载完毕~存储在：" + filePath,
+        //           toastLength: Toast.LENGTH_SHORT,
+        //           gravity: ToastGravity.BOTTOM,
+        //           timeInSecForIos: 8,
+        //           backgroundColor: Colors.grey[600], // 灰色背景
+        //           fontSize: 20.0,
+        //         );
+        //       }
+        //     });
 
-        Directory directoryRes;
-        //2、创建文件夹
-        if (!(await directory.exists())) {
-          directoryRes = await directory.create(recursive: true);
+        var appDocDir = await getTemporaryDirectory();
+        String savePath = appDocDir.path + "/" + (DateTime.now().millisecondsSinceEpoch).toString() + random.nextInt(100).toString() + ".mp4";
+        await Dio().download(fileURL, savePath);
+        final result = await ImageGallerySaver.saveFile(savePath);
+        String msg;
+        if (result['isSuccess']) {
+          msg = "视频下载成功！";
+        } else {
+          msg = "视频下载失败！" + result['errorMessage'].toString();
         }
-
-        String filePath = directory.path + "/" + (DateTime.now().millisecondsSinceEpoch).toString() + random.nextInt(100).toString() + ".mp4";
-
-        //3、使用 dio 下载文件
-        await dio.download(fileURL, filePath,
-            onReceiveProgress: (receivedBytes, totalBytes) {
-              if (receivedBytes/totalBytes == 1) {
-                print(receivedBytes.toString() + "/" + totalBytes.toString());
-                Fluttertoast.showToast(
-                  msg: "视频下载完毕~存储在：" + filePath,
-                  toastLength: Toast.LENGTH_SHORT,
-                  gravity: ToastGravity.BOTTOM,
-                  timeInSecForIos: 8,
-                  backgroundColor: Colors.grey[600], // 灰色背景
-                  fontSize: 20.0,
-                );
-              }
-            });
-
+        showDefaultToast(msg);
       } catch (e) {
-        Fluttertoast.showToast(
-          msg: "下载失败！" + e.toString(),
-          toastLength: Toast.LENGTH_SHORT,
-          gravity: ToastGravity.BOTTOM,
-          timeInSecForIos: 8,
-          backgroundColor: Colors.grey[600], // 灰色背景
-          fontSize: 20.0,
-        );
+        showDefaultToast("下载失败！" + e.toString());
       }
 
     } else {
-      Fluttertoast.showToast(
-        msg: "下载失败！",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.BOTTOM,
-        timeInSecForIos: 8,
-        backgroundColor: Colors.grey[600], // 灰色背景
-        fontSize: 20.0,
-      );
+      showDefaultToast("下载失败！没有权限读写手机内存！");
     }
+  }
+
+  void showDefaultToast(String msg) {
+    Fluttertoast.showToast(
+      msg: msg,
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIos: 8,
+      backgroundColor: Colors.grey[600], // 灰色背景
+      fontSize: 20.0,
+    );
   }
 }
 
