@@ -1,17 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:video_player/video_player.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:simple_permissions/simple_permissions.dart';
-import 'package:file_utils/file_utils.dart';
 import 'dart:math';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
-
+import 'package:fijkplayer/fijkplayer.dart';
 
 
 void main() => runApp(MyApp());
@@ -47,12 +42,33 @@ class _ExampleWidgetState extends State<ExampleWidget> {
   Permission permission1 = Permission.WriteExternalStorage;
   static final Random random = Random();
   String fileURL = "";
+  final FijkPlayer player = FijkPlayer();
+
+  @override
+  void initState() {
+    super.initState();
+    player.setDataSource("");
+  }
+
+
+  @override
+  void dispose() {
+    super.dispose();
+    player.release();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
+        Container(
+          width: 300,
+          height: 300,
+          child: FijkView(
+            player: player,
+          ),
+        ),
         TextField(
           controller: _controller,
           decoration: const InputDecoration(
@@ -85,7 +101,11 @@ class _ExampleWidgetState extends State<ExampleWidget> {
               String msg = res;
               if (res.startsWith("http")) {
                 fileURL = res;
-                downloadFile();
+                showDefaultToast("解析成功！");
+                setState(() {
+                  player.reset();
+                  player.setDataSource(fileURL, autoPlay: false, showCover: true);
+                });
               } else {
                 showDefaultToast(msg);
               }
@@ -96,18 +116,16 @@ class _ExampleWidgetState extends State<ExampleWidget> {
           color: Colors.green,
           textColor: Colors.white,
           splashColor: Colors.blue,
-          child: const Text('解析并下载'),
+          child: const Text('解析'),
         ),
         RaisedButton(
           onPressed: () async {
             try {
-              String res = await (const MethodChannel("parseShareLink")).invokeMethod(_controller.text);
-              String msg = res;
-              if (res.startsWith("http")) {
-                Clipboard.setData(ClipboardData(text: res));
-                msg = '七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~';
+              if (fileURL.startsWith("http")) {
+                downloadFile();
+              } else {
+                showDefaultToast("解析失败！请重新解析！");
               }
-              showDefaultToast(msg);
             } catch (e) {
               showDefaultToast(e.message);
             }
@@ -115,7 +133,25 @@ class _ExampleWidgetState extends State<ExampleWidget> {
           color: Colors.green,
           textColor: Colors.white,
           splashColor: Colors.blue,
-          child: const Text('解析并获取下载链接'),
+          child: const Text('下载视频'),
+        ),
+        RaisedButton(
+          onPressed: () async {
+            try {
+              if (fileURL.startsWith("http")) {
+                Clipboard.setData(ClipboardData(text: fileURL));
+                showDefaultToast('七里翔提醒您，下载链接已复制到粘贴板，请到浏览器下载视频哦~');
+              } else {
+                showDefaultToast("解析失败！请重新解析！");
+              }
+            } catch (e) {
+              showDefaultToast(e.message);
+            }
+          },
+          color: Colors.green,
+          textColor: Colors.white,
+          splashColor: Colors.blue,
+          child: const Text('复制下载链接'),
         ),
       ],
     );
@@ -132,32 +168,6 @@ class _ExampleWidgetState extends State<ExampleWidget> {
 
     if (checkPermission1 == true) {
       try {
-        // Directory directory = Directory((await getApplicationDocumentsDirectory()).path);
-        //
-        // Directory directoryRes;
-        // //2、创建文件夹
-        // if (!(await directory.exists())) {
-        //   directoryRes = await directory.create(recursive: true);
-        // }
-        //
-        // String filePath = directory.path + "/" + (DateTime.now().millisecondsSinceEpoch).toString() + random.nextInt(100).toString() + ".mp4";
-        //
-        // //3、使用 dio 下载文件
-        // await dio.download(fileURL, filePath,
-        //     onReceiveProgress: (receivedBytes, totalBytes) {
-        //       if (receivedBytes/totalBytes == 1) {
-        //         print(receivedBytes.toString() + "/" + totalBytes.toString());
-        //         Fluttertoast.showToast(
-        //           msg: "视频下载完毕~存储在：" + filePath,
-        //           toastLength: Toast.LENGTH_SHORT,
-        //           gravity: ToastGravity.BOTTOM,
-        //           timeInSecForIos: 8,
-        //           backgroundColor: Colors.grey[600], // 灰色背景
-        //           fontSize: 20.0,
-        //         );
-        //       }
-        //     });
-
         var appDocDir = await getTemporaryDirectory();
         String savePath = appDocDir.path + "/" + (DateTime.now().millisecondsSinceEpoch).toString() + random.nextInt(100).toString() + ".mp4";
         await Dio().download(fileURL, savePath);
@@ -190,103 +200,40 @@ class _ExampleWidgetState extends State<ExampleWidget> {
   }
 }
 
-class VideoPlayerApp extends StatelessWidget {
-  const VideoPlayerApp({Key key}) : super(key: key);
+class VideoScreen extends StatefulWidget {
+  String url;
+
+  VideoScreen({Key key, this.url}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Video Player Demo',
-      home: VideoPlayerScreen(),
-    );
-  }
+  _VideoScreenState createState() => _VideoScreenState();
 }
 
-class VideoPlayerScreen extends StatefulWidget {
-  const VideoPlayerScreen({Key key}) : super(key: key);
+class _VideoScreenState extends State<VideoScreen> {
+  final FijkPlayer player = FijkPlayer();
 
-  @override
-  _VideoPlayerScreenState createState() => _VideoPlayerScreenState();
-}
-
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
-   VideoPlayerController _controller;
-   Future<void> _initializeVideoPlayerFuture;
-   String videoUrl;
+  _VideoScreenState();
 
   @override
   void initState() {
-    // Create and store the VideoPlayerController. The VideoPlayerController
-    // offers several different constructors to play videos from assets, files,
-    // or the internet.
-    _controller = VideoPlayerController.network(
-      videoUrl,
-    );
-
-    // Initialize the controller and store the Future for later use.
-    _initializeVideoPlayerFuture = _controller.initialize();
-
-    // Use the controller to loop the video.
-    _controller.setLooping(true);
-
     super.initState();
-  }
-
-  @override
-  void dispose() {
-    // Ensure disposing of the VideoPlayerController to free up resources.
-    _controller.dispose();
-
-    super.dispose();
+    player.setDataSource(widget.url, autoPlay: true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Butterfly Video'),
-      ),
-      // Use a FutureBuilder to display a loading spinner while waiting for the
-      // VideoPlayerController to finish initializing.
-      body: FutureBuilder(
-        future: _initializeVideoPlayerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            // If the VideoPlayerController has finished initialization, use
-            // the data it provides to limit the aspect ratio of the video.
-            return AspectRatio(
-              aspectRatio: _controller.value.aspectRatio,
-              // Use the VideoPlayer widget to display the video.
-              child: VideoPlayer(_controller),
-            );
-          } else {
-            // If the VideoPlayerController is still initializing, show a
-            // loading spinner.
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Wrap the play or pause in a call to `setState`. This ensures the
-          // correct icon is shown.
-          setState(() {
-            // If the video is playing, pause it.
-            if (_controller.value.isPlaying) {
-              _controller.pause();
-            } else {
-              // If the video is paused, play it.
-              _controller.play();
-            }
-          });
-        },
-        // Display the correct icon depending on the state of the player.
-        child: Icon(
-          _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-        ),
-      ),
-    );
+        body: Container(
+          alignment: Alignment.center,
+          child: FijkView(
+            player: player,
+          ),
+        ));
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    player.release();
   }
 }
