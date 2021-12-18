@@ -3,6 +3,6 @@
 
 目前仅有抖音、快手短视频无水印下载功能~还在想有什么好玩的功能可以开发的
 
-![APP界面图](./images/cover.jpg)
+[安卓APP安装包下载](https://github.com/HandsomeDong/mobile_phone_tools/raw/main/apk/%E4%B8%83%E9%87%8C%E7%BF%94%E5%B0%8F%E5%B7%A5%E5%85%B7.apk)
 
-安卓APP安装包可在 ./apk 中找到，可下载安装体验
+![enter description here](https://github.com/HandsomeDong/mobile_phone_tools/blob/main/document/cover.jpg?raw=true)
